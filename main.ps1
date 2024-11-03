@@ -1,3 +1,47 @@
+<#
+.DESCRIPTION
+    This PowerShell script is designed for advanced system cleanup and uninstallation tasks, commonly required during application 
+    removal and system decommissioning processes. It does cleanup of applications, services, processes, environment variables,
+    registry entries, and files on Windows systems. 
+
+    Used functions:
+    - **Application Uninstallation**: Using PowerShell's `Get-CimInstance` with `Win32_Product`, the script locates applications by 
+    name pattern and uninstalls them if found. This feature is effective for bulk uninstalls where multiple applications share similar
+     naming conventions. Each uninstallation logs the action, and any errors are captured in the log for troubleshooting.
+    
+    - **Environment Variable Management**: The script includes logic to search for and delete specific environment variables at the
+     machine level. This is particularly helpful in cases where environment variables point to application-specific paths or 
+     configurations that are no longer relevant after uninstalling software.
+    
+    - **Registry Cleanup**: For comprehensive cleanup, the script accesses the Windows registry to remove specified paths and all
+     subkeys beneath them. This prevents any leftover configurations or settings from persisting in the registry, which is essential
+      for clean software reinstallation or to eliminate obsolete settings.
+    
+    - **File and Folder Deletion**: Using recursive deletion, the script removes folders and files by specified paths. It supports
+     dynamic path resolution through environment variables, making it versatile for directories like `%HOMEDRIVE%` or `%SYSTEMROOT%`
+      that vary across systems. This function ensures directories are removed, even if they contain locked files, by forcing the removal
+       where needed.
+    
+    - **Process Termination**: The script identifies and forcefully terminates processes by name. This is crucial for removing 
+    application dependencies and resolving resource locks that might prevent files or folders from being deleted. It handles multiple
+     instances of the same process, ensuring all related processes are killed.
+    
+    - **Service Control**: Administrators can use this script to locate and stop services by name, even if the service is already in a
+     stopped state. This is useful when working with services installed by applications that are set to run in the background, allowing
+      complete application shutdown before uninstallation.
+    
+    - **Executable Uninstallation**: For applications that require a specific executable uninstaller, the script supports executing these
+     uninstallers with silent flags. It waits for completion, ensuring the uninstallation is finalized before proceeding with the cleanup steps. 
+
+.NOTES
+    Author: [Jan Svehla]
+    Last Updated: [1.11.2024]
+    Requirements: Administrative privileges are necessary for registry and service changes, as well as application uninstallation.
+    Disclaimer: Ensure this script is tested in a controlled environment before applying it to production systems, as it performs irreversible deletions and modifications.
+#>
+
+
+
 function Uninstall-App {
     param (
         [Parameter(Mandatory=$true)]
