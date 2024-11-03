@@ -1,25 +1,33 @@
 function Uninstall-App {
     param (
+        [Parameter(Mandatory=$true)]
         [string]$AppName
     )
 
-    # Get the list of installed applications
-    $installedApps = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -Like "*$AppName*" }
 
-    # Check if any application is found
-    if ($installedApps.Count -eq 0) {
-        Write-Host "Application not installed: $AppName"
-        return
+    try {
+        $installedApps = Get-CimInstance -ClassName Win32_Product | Where-Object { $_.Name -Like "*$AppName*" }
+
+        #check required application is installed
+        if ($installedApps.Count -eq 0) {
+            Log-Action "Application not installed: $AppName"
+            Write-Host "Application not installed: $AppName"
+            return
+        }
+
+        foreach ($app in $installedApps) {
+            Write-Host "Uninstalling $($app.Name)..."
+            $app.Uninstall()
+            Log-Action "Uninstalled application: $($app.Name)"
+        }
+
+        Write-Host "Uninstallation complete."
+    } catch {
+        Write-Host "An error occurred: $_"
+        Log-Action "Error during uninstallation: $_"
     }
-
-    # Uninstall each application
-    foreach ($app in $installedApps) {
-        Write-Host "Uninstalling $($app.Name)..."
-        $app.Uninstall()
-    }
-
-    Write-Host "Uninstallation complete."
 }
+
 
 function Remove-EnvironmentVariable {
     param (
