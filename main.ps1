@@ -57,105 +57,181 @@ function Remove-EnvironmentVariable {
 
 function Remove-RegistryEntry {
     param (
+        [Parameter(Mandatory=$true)]
         [string]$RegistryPath
     )
 
-    # Check if the registry path exists
-    if (-not (Test-Path $RegistryPath)) {
-        Write-Host "Registry path not found: $RegistryPath"
-        return
+    try {
+        # Check if the registry path exists
+        if (-not (Test-Path $RegistryPath)) {
+            Write-Host "Registry path not found: $RegistryPath"
+            Log-Action "Registry path not found: $RegistryPath"
+            return
+        }
+
+        # Attempt to remove the registry entry
+        Remove-Item -Path $RegistryPath -Recurse -Force
+        Write-Host "Registry entry removed: $RegistryPath"
+        Log-Action "Registry entry removed: $RegistryPath"
+
+    } catch {
+        Write-Host "An error occurred while removing the registry entry: $_"
+        Log-Action "Error removing registry entry at '$RegistryPath': $_"
     }
-
-    # Remove the registry entry
-    Remove-Item -Path $RegistryPath -Recurse -Force
-
-    Write-Host "Registry entry removed: $RegistryPath"
 }
+
 
 function Remove-Folder {
     param (
+        [Parameter(Mandatory=$true)]
         [string]$FolderPath
     )
 
-    # Check if the folder exists
-    if (Test-Path $FolderPath) {
-        # Remove the folder
-        Get-ChildItem $FolderPath -Recurse | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
-        Remove-Item $FolderPath -Force -Recurse -ErrorAction SilentlyContinue
+    try {
+        # Check if the folder exists
+        if (-not (Test-Path -Path $FolderPath -PathType Container)) {
+            Write-Host "Folder not found: $FolderPath"
+            Log-Action "Folder not found: $FolderPath"
+            return
+        }
+
+        # Attempt to remove the folder and its contents
+        Remove-Item -Path $FolderPath -Recurse -Force -ErrorAction Stop
         Write-Host "Folder removed: $FolderPath"
-    } else {
-        Write-Host "Folder not found: $FolderPath"
+        Log-Action "Folder removed: $FolderPath"
+
+    } catch {
+        Write-Host "An error occurred while removing the folder: $_"
+        Log-Action "Error removing folder at '$FolderPath': $_"
     }
 }
+
 
 function Kill-Process {
     param (
+        [Parameter(Mandatory=$true)]
         [string]$ProcessName
     )
 
-    # Get the process by name
-    $process = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
+    try {
+        # Attempt to get the process by name
+        $processes = Get-Process -Name $ProcessName -ErrorAction Stop
 
-    # Check if the process exists
-    if ($process) {
-        # Kill the process
-        $process | ForEach-Object { Stop-Process $_.Id -Force }
-        Write-Host "Process '$ProcessName' killed."
-    } else {
+        # Terminate each instance of the process
+        $processes | ForEach-Object {
+            Stop-Process -Id $_.Id -Force -ErrorAction Stop
+            Write-Host "Process '$ProcessName' (ID: $($_.Id)) killed."
+            Log-Action "Process '$ProcessName' (ID: $($_.Id)) killed."
+        }
+
+    } catch [System.Management.Automation.ItemNotFoundException] {
+        # Specific catch block for when the process is not found
         Write-Host "Process '$ProcessName' not found."
+        Log-Action "Process '$ProcessName' not found."
+
+    } catch {
+        # General catch block for other errors
+        Write-Host "An error occurred while trying to kill the process '$ProcessName': $_"
+        Log-Action "Error killing process '$ProcessName': $_"
     }
 }
+
 
 function Stop-Service {
     param (
+        [Parameter(Mandatory=$true)]
         [string]$ServiceName
     )
 
-    # Get the service by name
-    $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+    try {
+        # Attempt to retrieve the service by name
+        $service = Get-Service -Name $ServiceName -ErrorAction Stop
 
-    # Check if the service exists
-    if ($service) {
+        # Check if the service is already stopped
+        if ($service.Status -eq 'Stopped') {
+            Write-Host "Service '$ServiceName' is already stopped."
+            Log-Action "Service '$ServiceName' is already stopped."
+            return
+        }
+
         # Stop the service
-        Stop-Service -Name $ServiceName -Force
+        Stop-Service -Name $ServiceName -Force -ErrorAction Stop
         Write-Host "Service '$ServiceName' stopped."
-    } else {
+        Log-Action "Service '$ServiceName' stopped."
+
+    } catch [System.InvalidOperationException] {
+        # Specific catch block for when the service is not found
         Write-Host "Service '$ServiceName' not found."
+        Log-Action "Service '$ServiceName' not found."
+
+    } catch {
+        # General catch block for other errors
+        Write-Host "An error occurred while stopping the service '$ServiceName': $_"
+        Log-Action "Error stopping service '$ServiceName': $_"
     }
 }
+
 
 function Remove-FileWithEnvPath {
     param (
+        [Parameter(Mandatory=$true)]
         [string]$FilePath
     )
 
-    # Expand environment variables in the file path
-    $expandedFilePath = [Environment]::ExpandEnvironmentVariables($FilePath)
+    try {
+        # Expand environment variables in the file path
+        $expandedFilePath = [Environment]::ExpandEnvironmentVariables($FilePath)
 
-    # Check if the file exists
-    if (Test-Path $expandedFilePath) {
-        # Remove the file
-        Remove-Item -Path $expandedFilePath -Force
+        # Check if the file exists
+        if (-not (Test-Path -Path $expandedFilePath -PathType Leaf)) {
+            Write-Host "File not found: $expandedFilePath"
+            Log-Action "File not found: $expandedFilePath"
+            return
+        }
+
+        # Attempt to remove the file
+        Remove-Item -Path $expandedFilePath -Force -ErrorAction Stop
         Write-Host "File removed: $expandedFilePath"
-    } else {
-        Write-Host "File not found: $expandedFilePath"
+        Log-Action "File removed: $expandedFilePath"
+
+    } catch {
+        # Handle errors during file removal
+        Write-Host "An error occurred while removing the file '$expandedFilePath': $_"
+        Log-Action "Error removing file at '$expandedFilePath': $_"
     }
 }
+
 
 function Run-ExeUninstaller {
     param (
+        [Parameter(Mandatory=$true)]
         [string]$UninstallerPath
     )
 
-    # Check if the uninstaller executable exists
-    if (Test-Path $UninstallerPath) {
+    try {
+        # Check if the uninstaller executable exists
+        if (-not (Test-Path -Path $UninstallerPath -PathType Leaf)) {
+            Write-Host "Uninstaller not found: $UninstallerPath"
+            Log-Action "Uninstaller not found: $UninstallerPath"
+            return
+        }
+
+        # Run the uninstaller with silent mode and wait for completion
         Write-Host "Running uninstaller: $UninstallerPath"
-        Start-Process -FilePath $UninstallerPath -ArgumentList "/S" -Wait
+        Log-Action "Running uninstaller: $UninstallerPath"
+        
+        Start-Process -FilePath $UninstallerPath -ArgumentList "/S" -Wait -ErrorAction Stop
+
         Write-Host "Uninstaller completed: $UninstallerPath"
-    } else {
-        Write-Host "Uninstaller not found: $UninstallerPath"
+        Log-Action "Uninstaller completed: $UninstallerPath"
+
+    } catch {
+        # Handle errors that occur during the uninstallation process
+        Write-Host "An error occurred while running the uninstaller at '$UninstallerPath': $_"
+        Log-Action "Error running uninstaller at '$UninstallerPath': $_"
     }
 }
+
 
 Uninstall-App -AppName "Amberg Track Pro Field"
 Remove-Folder "C:\Program Files\Amberg Technologies AG\Amberg Track Pro Field"
