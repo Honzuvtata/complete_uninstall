@@ -31,20 +31,29 @@ function Uninstall-App {
 
 function Remove-EnvironmentVariable {
     param (
+        [Parameter(Mandatory=$true)]
         [string]$VariableName
     )
 
-    # Check if the environment variable exists
-    if (-not (Test-Path "Env:\$VariableName")) {
-        Write-Host "Environment variable not found: $VariableName"
-        return
+    try {
+        # Check if the environment variable exists
+        if (-not (Test-Path "Env:\$VariableName")) {
+            Write-Host "Environment variable not found: $VariableName"
+            Log-Action "Environment variable not found: $VariableName"
+            return
+        }
+
+        # Remove the environment variable
+        [Environment]::SetEnvironmentVariable($VariableName, $null, "Machine")
+        Write-Host "Environment variable removed: $VariableName"
+        Log-Action "Environment variable removed: $VariableName"
+        
+    } catch {
+        Write-Host "An error occurred while removing the environment variable: $_"
+        Log-Action "Error removing environment variable '$VariableName': $_"
     }
-
-    # Remove the environment variable
-    [Environment]::SetEnvironmentVariable($VariableName, $null, "Machine")
-
-    Write-Host "Environment variable removed: $VariableName"
 }
+
 
 function Remove-RegistryEntry {
     param (
